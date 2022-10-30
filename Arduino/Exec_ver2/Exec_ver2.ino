@@ -238,6 +238,8 @@ void playRhythm(HitType rhythm[], float greenAmp[], float greenFreq[], float bla
     delay(500);
   }
 
+  delay(3000);
+
 
   int out = 0;
   for (int i = 0; i < 8; ++i) {
@@ -296,14 +298,25 @@ void loop() {
   unsigned long freq = Serial.read();
   while (!SERIAL.available());
   unsigned long AMP1 = Serial.read();
+  while (!SERIAL.available());
+  unsigned long bias1 = Serial.read();
+
+
+
   float freq1 = float(freq)/1000;
+  bias1=bias1*5;
   AMP1 = AMP1*20;
 
-  if ((freq1 > 0.01) && (freq1 < 0.04) && (AMP1 > 0) && (AMP1 < 5000)) {
+
+
+  if ((freq1 > 0.01) && (freq1 < 0.04) && (AMP1 > 0) && (AMP1*2+bias1 < 10000)) {
     float greenAmp[] = {AMP1};
     float greenFreq[] = {freq1};
     float blackAmp[] = {AMP1};
     float blackFreq[] = {freq1};
-    playRhythm(rhythm4, greenAmp, greenFreq, blackAmp, blackFreq, 1);
+    int greenBias=bias1;
+    int blackBias=bias1;
+
+    playRhythm(rhythm4, greenAmp, greenFreq, blackAmp, blackFreq, 1, greenBias, blackBias);
   }
 }
