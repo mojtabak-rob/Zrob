@@ -67,7 +67,7 @@ void move (long bot, long dir, long pos, bool slow = false) {
   while (true) {
     if (CAN_MSGAVAIL == CAN.checkReceive()) {
       CAN.readMsgBuf(&len,buf);
-      break;  
+      break;
     }
   }
 }
@@ -84,14 +84,14 @@ void readPos (long bot, long initPos) {
   buf[7]= 0x00;
   CAN.sendMsgBuf(bot,0,8,buf);
 
-  while (true) 
+  while (true)
   {
     if (CAN_MSGAVAIL == CAN.checkReceive())
     {
       CAN.readMsgBuf(&len,buf);
-  
+
       unsigned long canID = CAN.getCanId();
-  
+
       if (buf[0] == 0x94) {
         // Determine position of bot, then move to starting position of 16000
         unsigned int currentPos = buf[6] + (buf[7] << 8);
@@ -110,7 +110,7 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
   long dirBlack;
   while (cyc) {
     timestep++;
-    
+
     if (hitType == green || hitType == both) {
       int stepValueGreen = 0;
       for (int i = 0; i < harmonics; ++i) {
@@ -119,19 +119,19 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
           cyc = false;
         }
       }
-      
+
       greenPos = greenPos + stepValueGreen;
       if (greenPos < 0) {
         greenPos = 0;
       }
-      
+
       if (stepValueGreen > 0) {
         dirGreen = up;
       }
       else if (stepValueGreen < 0) {
         dirGreen = down;
       }
-      
+
       move(greenBot, dirGreen, greenPos);
     }
 
@@ -145,7 +145,7 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
           cyc = false;
         }
       }
-      
+
       blackPos = blackPos + stepValueBlack;
       if (blackPos < 0) {
         blackPos = 0;
@@ -158,7 +158,7 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
         dirBlack = down;
       }
 
-      move(blackBot, dirBlack, blackPos); 
+      move(blackBot, dirBlack, blackPos);
     }
 
     //delay(delayTime);
@@ -166,13 +166,13 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
 }
 
 void playRhythm(HitType rhythm[], float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[],
-                int harmonics, int greenBias = 0, int blackBias = 0) 
+                int harmonics, int greenBias = 0, int blackBias = 0)
 {
 //  if(greenFreq[0] > 0.4 || blackFreq[0] > 0.4) {
 //    exit(0);
 //  }
 
-  // initialization according to the AMP - it can be done by adding a constant value to the Pos 
+  // initialization according to the AMP - it can be done by adding a constant value to the Pos
   if (sizeof(greenFreq) != 0) {
     int initialPos = greenContactPoint + greenBias + (greenAmp[0] * 2);
     long dir = (initialPos > greenPos) ? up : down;
@@ -248,7 +248,7 @@ void loop() {
   float freq1 = float(freq)/1000;
   AMP1 = AMP1*20;
 
-  if ((freq1 > 0.01) && (freq1 < 0.04) && (AMP1 > 0) && (AMP1 < 5000)) {      
+  if ((freq1 > 0.01) && (freq1 < 0.04) && (AMP1 > 0) && (AMP1 < 5000)) {
     float greenAmp[] = {AMP1};
     float greenFreq[] = {freq1};
     float blackAmp[] = {AMP1};
