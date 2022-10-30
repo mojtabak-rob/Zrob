@@ -45,12 +45,14 @@ const long down = 0x01;
 enum HitType {
   green,
   black,
-  both
+  both,
+  dual
 };
 
 HitType rhythm1[2] = {green,black};
 HitType rhythm2[2] = {green,black};
 HitType rhythm3[2] = {green,green};
+HitType rhythm4[2] = {dual,dual};
 
 // Moves a bot to a specified position in the defined position
 void move (long bot, long dir, long pos, bool slow = false) {
@@ -161,6 +163,47 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
       move(blackBot, dirBlack, blackPos);
     }
 
+    if (hitType == dual) {
+      int stepValueGreen = 0;
+      for (int i = 0; i < harmonics; ++i) {
+        stepValueGreen -= greenAmp[i] * greenFreq[i] * sin(greenFreq[i] * timestep);
+        if ((timestep * greenFreq[i]) >= 2 * PI) {
+          cyc = false;
+        }
+      }
+
+      int stepValueBlack = -stepValueGreen;
+
+      greenPos = greenPos + stepValueGreen;
+      if (greenPos < 0) {
+        greenPos = 0;
+      }
+
+      if (stepValueGreen > 0) {
+        dirGreen = up;
+      }
+      else if (stepValueGreen < 0) {
+        dirGreen = down;
+      }
+
+      move(greenBot, dirGreen, greenPos);
+
+
+      blackPos = blackPos + stepValueBlack;
+      if (blackPos < 0) {
+        blackPos = 0;
+      }
+
+      if (stepValueBlack > 0) {
+        dirBlack = up;
+      }
+      else if (stepValueBlack < 0) {
+        dirBlack = down;
+      }
+
+      move(blackBot, dirBlack, blackPos);
+    }
+
     //delay(delayTime);
   }
 }
@@ -180,13 +223,21 @@ void playRhythm(HitType rhythm[], float greenAmp[], float greenFreq[], float bla
     greenPos = initialPos;
     delay(500);
   }
-  if (sizeof(blackFreq) != 0) {
+  if (rhythm[0]==dual || rhythm[1]==dual){
+    int initialPos = blackContactPoint + blackBias;
+    long dir = (initialPos > blackPos) ? up : down;
+    move(blackBot, dir, initialPos, true);
+    blackPos = initialPos;
+    delay(500);
+  }
+  else if (sizeof(blackFreq) != 0) {
     int initialPos = blackContactPoint + blackBias + (blackAmp[0] * 2);
     long dir = (initialPos > blackPos) ? up : down;
     move(blackBot, dir, initialPos, true);
     blackPos = initialPos;
     delay(500);
   }
+
 
   int out = 0;
   for (int i = 0; i < 8; ++i) {
@@ -253,6 +304,6 @@ void loop() {
     float greenFreq[] = {freq1};
     float blackAmp[] = {AMP1};
     float blackFreq[] = {freq1};
-    playRhythm(rhythm1, greenAmp, greenFreq, blackAmp, blackFreq, 1);
+    playRhythm(rhythm4, greenAmp, greenFreq, blackAmp, blackFreq, 1);
   }
 }
