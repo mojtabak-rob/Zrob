@@ -49,17 +49,14 @@ enum HitType {
   dual
 };
 
-HitType rhythm1[2] = {green,black};
-HitType rhythm2[2] = {green,black};
-HitType rhythm3[2] = {green,green};
-HitType rhythm4[2] = {dual,dual};
+HitType rhythm[] = {dual};
 
 // Moves a bot to a specified position in the defined position
 void move (long bot, long dir, long pos, bool slow = false) {
   buf[0]= 0xA6;
   buf[1]= dir;
-  buf[2]= slow ? 0x01: 0x20;
-  buf[3]= slow ? 0x01: 0x20;
+  buf[2]= slow ? 0x01: 0x99;
+  buf[3]= slow ? 0x01: 0x99;
   buf[4]= pos;
   buf[5]= pos >> 8;
   buf[6]= 0x00;
@@ -105,74 +102,28 @@ void readPos (long bot, long initPos) {
   }
 }
 
-int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[], HitType hitType, int harmonics, int delayTime = 10) {
+int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[], HitType hitType, int harmonics, float  phaseShift) {
   bool cyc = true;
   float timestep = 0;
   long dirGreen;
   long dirBlack;
   while (cyc) {
-    timestep++;
-
-    if (hitType == green || hitType == both) {
-      int stepValueGreen = 0;
-      for (int i = 0; i < harmonics; ++i) {
-        stepValueGreen -= greenAmp[i] * greenFreq[i] * sin(greenFreq[i] * timestep);
-        if ((timestep * greenFreq[i]) >= 2 * PI) {
-          cyc = false;
-        }
-      }
-
-      greenPos = greenPos + stepValueGreen;
-      if (greenPos < 0) {
-        greenPos = 0;
-      }
-
-      if (stepValueGreen > 0) {
-        dirGreen = up;
-      }
-      else if (stepValueGreen < 0) {
-        dirGreen = down;
-      }
-
-      move(greenBot, dirGreen, greenPos);
-    }
-
-    //delay(delayTime);
-
-    if (hitType == black || hitType == both) {
-      int stepValueBlack = 0;
-      for (int i = 0; i < harmonics; ++i) {
-        stepValueBlack -= blackAmp[i] * blackFreq[i] * sin(blackFreq[i] * timestep);
-        if ((timestep * blackFreq[i]) >= 2 * PI) {
-          cyc = false;
-        }
-      }
-
-      blackPos = blackPos + stepValueBlack;
-      if (blackPos < 0) {
-        blackPos = 0;
-      }
-
-      if (stepValueBlack > 0) {
-        dirBlack = up;
-      }
-      else if (stepValueBlack < 0) {
-        dirBlack = down;
-      }
-
-      move(blackBot, dirBlack, blackPos);
-    }
+    
 
     if (hitType == dual) {
-      int stepValueGreen = 0;
+      int stepValueBlack = 0;
       for (int i = 0; i < harmonics; ++i) {
-        stepValueGreen -= greenAmp[i] * greenFreq[i] * sin(greenFreq[i] * timestep);
-        if ((timestep * greenFreq[i]) >= 2 * PI) {
-          cyc = false;
-        }
+        stepValueBlack = int(blackAmp[i] * blackFreq[i] * sin(blackFreq[i] * timestep));
+        
       }
 
-      int stepValueBlack = -stepValueGreen;
+      int stepValueGreen = 0;
+      for (int i = 0; i < harmonics; ++i) {
+        stepValueGreen = int(greenAmp[i] * greenFreq[i] * sin((greenFreq[i] * timestep) + phaseShift));
+        
+      }
+
+      
 
       greenPos = greenPos + stepValueGreen;
       if (greenPos < 0) {
@@ -204,12 +155,18 @@ int hit (float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[
       move(blackBot, dirBlack, blackPos);
     }
 
-    //delay(delayTime);
+    timestep++;
+    if ((timestep * blackFreq[0]) >= 2 * PI*16) {
+      cyc = false;
+    }
+    if ((timestep * greenFreq[0]) >= 2 * PI*16) {
+      cyc = false;
+    }
   }
 }
 
 void playRhythm(HitType rhythm[], float greenAmp[], float greenFreq[], float blackAmp[], float blackFreq[],
-                int harmonics, int greenBias = 0, int blackBias = 0)
+                int harmonics, int greenBias = 0, int blackBias = 0, float phaseShift = 0)
 {
 //  if(greenFreq[0] > 0.4 || blackFreq[0] > 0.4) {
 //    exit(0);
@@ -217,7 +174,7 @@ void playRhythm(HitType rhythm[], float greenAmp[], float greenFreq[], float bla
 
   // initialization according to the AMP - it can be done by adding a constant value to the Pos
   if (sizeof(greenFreq) != 0) {
-    int initialPos = greenContactPoint + greenBias + (greenAmp[0] * 2);
+    int initialPos = greenContactPoint + greenBias + greenAmp[0] - (greenAmp[0] * cos(phaseShift));
     long dir = (initialPos > greenPos) ? up : down;
     move(greenBot, dir, initialPos, true);
     greenPos = initialPos;
@@ -242,16 +199,8 @@ void playRhythm(HitType rhythm[], float greenAmp[], float greenFreq[], float bla
 
 
   int out = 0;
-  for (int i = 0; i < 8; ++i) {
-    int num = 0;
-    num = i % 2;
-
-    if (digitalRead(DOWN) == LOW) {
-      break;
-    }
-
-    out = hit(greenAmp, greenFreq, blackAmp, blackFreq, rhythm[num], harmonics);
-  }
+  out = hit(greenAmp, greenFreq, blackAmp, blackFreq, rhythm[0], harmonics, phaseShift);
+  
 }
 
 void setup() {
@@ -295,28 +244,48 @@ void setup() {
 
 void loop() {
   while (!SERIAL.available());
-  unsigned long freq = Serial.read();
+  unsigned long gAMP = Serial.read();
+  
   while (!SERIAL.available());
-  unsigned long AMP1 = Serial.read();
+  unsigned long gFREQ = Serial.read();
+  
   while (!SERIAL.available());
-  unsigned long bias1 = Serial.read();
+  unsigned long bAMP = Serial.read();
+
+  while (!SERIAL.available());
+  unsigned long bFREQ = Serial.read();
+
+  while (!SERIAL.available());
+  unsigned long gBIAS = Serial.read();
+
+  while (!SERIAL.available());
+  unsigned long bBIAS = Serial.read();
+
+  while (!SERIAL.available());
+  unsigned long pSHIFT = Serial.read();
 
 
 
-  float freq1 = float(freq)/1000;
-  bias1=bias1*5;
-  AMP1 = AMP1*20;
+  float freqG = float(gFREQ)/1000;
+  float freqB = float(bFREQ)/1000;
+  
+  gBIAS = gBIAS*10;
+  bBIAS = bBIAS*10;
+  
+  gAMP = gAMP*20;
+  bAMP = bAMP*20;
+
+  float phaseShift = float(pSHIFT)*PI/128;
 
 
+  if ((freqB > 0.001) && (freqB < 0.15) && (gAMP > 0) && (gAMP*2+gBIAS < 12000)) {
+    float greenAmp[] = {gAMP};
+    float greenFreq[] = {freqG};
+    float blackAmp[] = {bAMP};
+    float blackFreq[] = {freqB};
+    int greenBias = gBIAS;
+    int blackBias = bBIAS;
 
-  if ((freq1 > 0.01) && (freq1 < 0.04) && (AMP1 > 0) && (AMP1*2+bias1 < 10000)) {
-    float greenAmp[] = {AMP1};
-    float greenFreq[] = {freq1};
-    float blackAmp[] = {AMP1};
-    float blackFreq[] = {freq1};
-    int greenBias=bias1;
-    int blackBias=bias1;
-
-    playRhythm(rhythm4, greenAmp, greenFreq, blackAmp, blackFreq, 1, greenBias, blackBias);
+    playRhythm(rhythm, greenAmp, greenFreq, blackAmp, blackFreq, 1, greenBias, blackBias, phaseShift);
   }
 }
